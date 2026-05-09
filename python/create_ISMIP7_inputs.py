@@ -72,7 +72,23 @@ class quadmesh:
     def print(self):
         print(self.name,' grid dimensions: ',(self.nj,self.ni))
         print(self.x.shape,self.y.shape)
-        print('bed elevation: (max/min/mean)',self.bed.shape,self.bed.max(),self.bed.min(),self.bed.mean())
+        try:
+            print('bed elevation : (max/min/mean)',self.bed.shape,self.bed.max(),self.bed.min(),self.bed.mean())
+        except:
+            pass
+        try:
+            print('thickness : (max/min/mean)',self.thickness.shape,self.thickness.max(),self.thickness.min(),self.thickness.mean())
+        except:
+            pass
+        try:
+            print('geiod : (max/min/mean)',self.geiod.shape,self.geiod.max(),self.geiod.min(),self.geiod.mean())
+        except:
+            pass
+        try:
+            print('mask : (max/min)',self.mask.shape,self.mask.max(),self.mask.min())
+        except:
+            pass
+
 
 
     def add_bed(self,parent=None):
@@ -93,27 +109,27 @@ class quadmesh:
         else:
             self.thickness = 0.25*((parent.thickness[:-1:2,:-1:2]+parent.thickness[:-1:2,1::2])+\
                              parent.thickness[1::2,:-1:2]+parent.thickness[1::2,1::2])
-            print('Added thickness elevation for child grid mean/std: ',self.thickness.mean(),self.thickness.std())
+            print('Added thickness for child grid mean/std: ',self.thickness.mean(),self.thickness.std())
 
     def add_geoid(self,parent=None):
         if parent is None:
             if self.level == 1:
                 self.geoid = geoid1km[:-1,:-1] # cropping the odd cells off the upper-right side of the array
-                print('Added Geoid elevation for 1km grid mean/std: ',self.geoid.mean(),self.geoid.std())
+                print('Added Geoid for 1km grid mean/std: ',self.geoid.mean(),self.geoid.std())
         else:
             self.geoid = 0.25*((parent.geoid[:-1:2,:-1:2]+parent.geoid[:-1:2,1::2])+\
                              parent.geoid[1::2,:-1:2]+parent.geoid[1::2,1::2])
-            print('Added geoid elevation for child grid mean/std: ',self.geoid.mean(),self.geoid.std())
+            print('Added geoid for child grid mean/std: ',self.geoid.mean(),self.geoid.std())
 
     def add_mask(self,parent=None):
         if parent is None:
             if self.level == 1:
                 self.mask = mask1km[:-1,:-1] # cropping the odd cells off the upper-right side of the array
-                print('Added Mask elevation for 1km grid mean/std: ',self.mask.mean(),self.mask.std())
+                print('Added Mask for 1km grid max/min: ',self.mask.max(),self.mask.min())
         else:
             self.mask = np.round(0.25*((parent.mask[:-1:2,:-1:2]+parent.mask[:-1:2,1::2])+\
                              parent.mask[1::2,:-1:2]+parent.mask[1::2,1::2]))
-            print('Added mask elevation for child grid mean/std: ',self.mask.mean(),self.mask.std())
+            print('Added mask elevation for child grid max/min: ',self.mask.max(),self.mask.min())
 
     def to_netcdf(self,path=None):
         xh=self.x[1::2]
@@ -123,7 +139,7 @@ class quadmesh:
         ds_out = xr.Dataset(data_vars=dict(bed=(["y","x"],self.bed),thickness=(["y","x"],self.thickness),geoid=(["y","x"],self.geoid),mask=(["y","x"],self.mask)),coords=dict(y=yh,x=xh,),attrs=dict(name=self.name),)
         ds_out.to_netcdf(path_out)
 
-path='INPUT/GreenlandObsISMIP7-v1.3.nc'
+path='../INPUT/GreenlandObsISMIP7-v1.3.nc'
 print('Opening dataset: ',path)
 ds=xr.open_dataset(path)
 #Cell centers xh,yh (m)
@@ -169,22 +185,21 @@ print('Bed data y-index range: ',(jstart,jend))
 bed1km=np.zeros((nj,ni))
 thick1km=np.zeros((nj,ni))
 geoid1km=np.zeros((nj,ni))
-mask1km=np.zeros((nj,ni))
+mask1km=np.zeros((nj,ni)).astype('uint8')
 
-bed=ds['bed']
-thick=ds['thickness']
-geoid=ds['geoid']
-mask=ds['mask']
+bed=ds['bed'].load().data
+thick=ds['thickness'].load().data
+geoid=ds['geoid'].load().data
+mask=ds['mask'].load().data
+
 
 for j in  np.arange(jstart,jend-1):
     for i in np.arange(istart,iend-1):
         [(i0,j0),(i1,j1)]= find_in_domain([(xq1km[i],yq1km[j]),(xq1km[i+1],yq1km[j+1])],xb,yb)
-        bed1km[j,i]=bed[j0:j1,i0:i1].mean().load().data
-        thick1km[j,i]=thick[j0:j1,i0:i1].mean().load().data
-        geoid1km[j,i]=geoid[j0:j1,i0:i1].mean().load().data
-        mask1km[j,i]=np.round(geoid[j0:j1,i0:i1].mean().load().data)
-
-
+        bed1km[j,i]=bed[j0:j1,i0:i1].mean()
+        thick1km[j,i]=thick[j0:j1,i0:i1].mean()
+        geoid1km[j,i]=geoid[j0:j1,i0:i1].mean()
+        mask1km[j,i]=np.round(mask[j0:j1,i0:i1].mean()).astype('uint8')
 
 grid_1km = quadmesh('Grnld_1km')
 print('Greenland supergrid: ',(grid_1km.nj,grid_1km.ni))
