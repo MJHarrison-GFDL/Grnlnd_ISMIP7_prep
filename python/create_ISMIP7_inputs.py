@@ -139,7 +139,7 @@ class quadmesh:
         ds_out = xr.Dataset(data_vars=dict(bed=(["y","x"],self.bed),thickness=(["y","x"],self.thickness),geoid=(["y","x"],self.geoid),mask=(["y","x"],self.mask)),coords=dict(y=yh,x=xh,),attrs=dict(name=self.name),)
         ds_out.to_netcdf(path_out)
 
-path='../INPUT/GreenlandObsISMIP7-v1.3.nc'
+path='INPUT/GreenlandObsISMIP7-v1.3.nc'
 print('Opening dataset: ',path)
 ds=xr.open_dataset(path)
 #Cell centers xh,yh (m)
