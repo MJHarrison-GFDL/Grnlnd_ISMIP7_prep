@@ -28,3 +28,14 @@ d. Link to current directory  ( ln -s /path_to_ISMIP_data INPUT)
 e. Run script (python python/create_ISMIP7_inputs.py)
 
 f. Inspect results (Grnlnd_1km.nc, Grnlnd_2km.nc, Grnlnd_4km.nc)
+
+
+Optional (regridding rheology):
+
+g.  ln -s /path_to_rheology INPUT_NS
+
+   e.g. /archive/n2s/projGFDL_backup/GreenlandOM5_2023/outfiles_gridded
+
+h. Run rheology script (python python/Grnlnd_rheology.py)
+
+i. Inspect results ( Grnlnd_1km_rheology.nc, ...)

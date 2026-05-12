@@ -73,53 +73,45 @@ class quadmesh:
         print(self.name,' grid dimensions: ',(self.nj,self.ni))
         print(self.x.shape,self.y.shape)
         try:
-            print('bed elevation : (max/min/mean)',self.bed.shape,self.bed.max(),self.bed.min(),self.bed.mean())
-        except:
-            pass
-        try:
-            print('thickness : (max/min/mean)',self.thickness.shape,self.thickness.max(),self.thickness.min(),self.thickness.mean())
-        except:
-            pass
-        try:
-            print('geiod : (max/min/mean)',self.geiod.shape,self.geiod.max(),self.geiod.min(),self.geiod.mean())
-        except:
-            pass
-        try:
-            print('mask : (max/min)',self.mask.shape,self.mask.max(),self.mask.min())
+            print('friction_coefficient : (max/min)',self.fralpha.shape,self.fralpha.max(),self.fralpha.min())
         except:
             pass
 
 
 
-    def add_bed(self,parent=None):
+    def add_rheology(self,parent=None):
         if parent is None:
             if self.level == 1:
-                self.bed = bed1km[:-1,:-1] # cropping the odd cells off the upper-right side of the array
-                print('Added Bed elevation for 1km grid mean/std: ',self.bed.mean(),self.bed.std())
+                self.fralpha = fralpha1km[:-1,:-1] # cropping the odd cells off the upper-right side of the array
+                print('Added friction coefficient ( for 1km grid mean/std: ',self.fralpha.mean(),self.fralpha.std())
+                self.Bbar = Bbar1km[:-1,:-1] # cropping the odd cells off the upper-right side of the array
+                print('Added Bbar ( for 1km grid mean/std: ',self.Bbar.mean(),self.Bbar.std())
         else:
-            self.bed = 0.25*((parent.bed[:-1:2,:-1:2]+parent.bed[:-1:2,1::2])+\
-                             parent.bed[1::2,:-1:2]+parent.bed[1::2,1::2])
-            print('Added bed elevation for child grid mean/std: ',self.bed.mean(),self.bed.std())
+            self.fralpha = 0.25*((parent.fralpha[:-1:2,:-1:2]+parent.fralpha[:-1:2,1::2])+\
+                             parent.fralpha[1::2,:-1:2]+parent.fralpha[1::2,1::2])
+            print('Added fralpha elevation for child grid mean/std: ',self.fralpha.mean(),self.fralpha.std())
+            self.Bbar = 0.25*((parent.Bbar[:-1:2,:-1:2]+parent.Bbar[:-1:2,1::2])+\
+                             parent.Bbar[1::2,:-1:2]+parent.Bbar[1::2,1::2])
+            print('Added Bbar elevation for child grid mean/std: ',self.Bbar.mean(),self.Bbar.std())
 
-    def add_thickness(self,parent=None):
+
+
+    def add_vel(self,parent=None):
         if parent is None:
             if self.level == 1:
-                self.thickness = thick1km[:-1,:-1] # cropping the odd cells off the upper-right side of the array
-                print('Added shelf thickness for 1km grid mean/std: ',self.thickness.mean(),self.thickness.std())
+                self.vx = vx1km[:-1,:-1] # cropping the odd cells off the upper-right side of the array
+                self.vy = vy1km[:-1,:-1] # cropping the odd cells off the upper-right side of the array
+                print('Added vx for 1km grid mean/std: ',self.vx.mean(),self.vx.std())
+                print('Added vy for 1km grid mean/std: ',self.vy.mean(),self.vy.std())
         else:
-            self.thickness = 0.25*((parent.thickness[:-1:2,:-1:2]+parent.thickness[:-1:2,1::2])+\
-                             parent.thickness[1::2,:-1:2]+parent.thickness[1::2,1::2])
-            print('Added thickness for child grid mean/std: ',self.thickness.mean(),self.thickness.std())
-
-    def add_geoid(self,parent=None):
-        if parent is None:
-            if self.level == 1:
-                self.geoid = geoid1km[:-1,:-1] # cropping the odd cells off the upper-right side of the array
-                print('Added Geoid for 1km grid mean/std: ',self.geoid.mean(),self.geoid.std())
-        else:
-            self.geoid = 0.25*((parent.geoid[:-1:2,:-1:2]+parent.geoid[:-1:2,1::2])+\
-                             parent.geoid[1::2,:-1:2]+parent.geoid[1::2,1::2])
-            print('Added geoid for child grid mean/std: ',self.geoid.mean(),self.geoid.std())
+            vh = parent.vx*parent.thickness
+            self.vx =0.25*((vh[:-1:2,:-1:2]+vh[:-1:2,1::2])+\
+                      vh[1::2,:-1:2]+vh[1::2,1::2])/np.maximum(self.thickness,1.e-12)
+            vh = parent.vy*parent.thickness
+            self.vy =0.25*((vh[:-1:2,:-1:2]+vh[:-1:2,1::2])+\
+                      vh[1::2,:-1:2]+vh[1::2,1::2])/np.maximum(self.thickness,1.e-12)
+            print('Added vx for child grid mean/std: ',self.vx.mean(),self.vx.std())
+            print('Added vy for child grid mean/std: ',self.vy.mean(),self.vy.std())
 
     def add_mask(self,parent=None):
         if parent is None:
@@ -134,23 +126,29 @@ class quadmesh:
     def to_netcdf(self,path=None):
         xh=self.x[1::2]
         yh=self.y[1::2]
-        path_out = self.name+'.nc'
+        path_out = self.name+'_rheology.nc'
         if path is not None: path_out=path
-        ds_out = xr.Dataset(data_vars=dict(bed=(["y","x"],self.bed),thickness=(["y","x"],self.thickness),geoid=(["y","x"],self.geoid),mask=(["y","x"],self.mask)),coords=dict(y=yh,x=xh,),attrs=dict(name=self.name),)
+        print('saving to netcdf, ',path_out, self.name)
+        print(xh.shape)
+        print(yh.shape)
+        print(self.fralpha.shape)
+        dA_fr=xr.DataArray(name='friction_coefficient',data=self.fralpha,dims=["y","x"],coords=dict(y=(["y"],yh),x=(["x"],xh)))
+        dA_bb=xr.DataArray(name='Bbar',data=self.Bbar,dims=["y","x"],coords=dict(y=(["y"],yh),x=(["x"],xh)))
+        ds_out=xr.merge((dA_fr,dA_bb))
         ds_out.to_netcdf(path_out)
 
-path='INPUT/GreenlandObsISMIP7-v1.3.nc'
+path='INPUT_NS/GreenlandISMIP6_BMa5_Control_drag_weertman_abslog_BMa5_interp_d1.nc'
 print('Opening dataset: ',path)
 ds=xr.open_dataset(path)
 #Cell centers xh,yh (m)
-xh=ds['x1km'].load().data
-yh=ds['y1km'].load().data
+xh=ds['x'].load().data
+yh=ds['y'].load().data
 ni=xh.shape[0];nj=yh.shape[0]
 print('Grid size= ',(ni,nj))
 print('x center coord range: ',(xh[0],xh[-1]))
 print('y center coord range: ',(yh[0],yh[-1]))
-proj4text=ds['mapping'].proj4text
-proj = CRS.from_proj4(proj4text)
+#proj4text=ds['mapping'].proj4text
+#proj = CRS.from_proj4(proj4text)
 #print(proj.to_wkt(WktVersion.WKT1_GDAL, pretty=True))
 # Distance between cell centers dx,dy (m)
 dx=xh[1:]-xh[:-1]
@@ -172,34 +170,12 @@ sgx1km=np.zeros(2*ni+1);sgx1km[::2]=xq1km;sgx1km[1::2]=0.5*(sgx1km[0:-1:2]+sgx1k
 sgy1km=np.zeros(2*nj+1);sgy1km[::2]=yq1km;sgy1km[1::2]=0.5*(sgy1km[0:-1:2]+sgy1km[2::2])
 
 
-# bed depth (m)
-xb=ds['x'].load().data
-yb=ds['y'].load().data
-print('xbed bnds: ',(xb[0],xb[-1]))
-print('ybed bnds: ',(yb[0],yb[-1]))
-# Find start and end indices of bed data within the 1km domain
-[(istart,jstart),(iend,jend)] = find_in_domain([(xb[0],yb[0]),(xb[-1],yb[-1])],xq1km,yq1km)
-print('Bed data x-index range: ',(istart,iend))
-print('Bed data y-index range: ',(jstart,jend))
+print('x bnds: ',(xq1km[0],xq1km[-1]))
+print('y bnds: ',(yq1km[0],yq1km[-1]))
 
-bed1km=np.zeros((nj,ni))
-thick1km=np.zeros((nj,ni))
-geoid1km=np.zeros((nj,ni))
-mask1km=np.zeros((nj,ni)).astype('uint8')
+fralpha1km=ds['friction_coefficient'].fillna(0.).load().data
+Bbar1km=ds['Bbar'].fillna(0.).load().data
 
-bed=ds['bed'].load().data
-thick=ds['thickness'].load().data
-geoid=ds['geoid'].load().data
-mask=ds['mask'].load().data
-
-
-for j in  np.arange(jstart,jend-1):
-    for i in np.arange(istart,iend-1):
-        [(i0,j0),(i1,j1)]= find_in_domain([(xq1km[i],yq1km[j]),(xq1km[i+1],yq1km[j+1])],xb,yb)
-        bed1km[j,i]=bed[j0:j1,i0:i1].mean()
-        thick1km[j,i]=thick[j0:j1,i0:i1].mean()
-        geoid1km[j,i]=geoid[j0:j1,i0:i1].mean()
-        mask1km[j,i]=np.round(mask[j0:j1,i0:i1].mean()).astype('uint8')
 
 grid_1km = quadmesh('Grnld_1km')
 print('Greenland supergrid: ',(grid_1km.nj,grid_1km.ni))
@@ -208,18 +184,9 @@ print('Greenland 2km supergrid: ',(grid_2km.nj,grid_2km.ni))
 grid_4km = quadmesh('Grnld_4km',parent=grid_2km)
 print('Greenland 2km supergrid: ',(grid_4km.nj,grid_4km.ni))
 
-grid_1km.add_bed()
-grid_2km.add_bed(grid_1km)
-grid_4km.add_bed(grid_2km)
-grid_1km.add_thickness()
-grid_2km.add_thickness(grid_1km)
-grid_4km.add_thickness(grid_2km)
-grid_1km.add_geoid()
-grid_2km.add_geoid(grid_1km)
-grid_4km.add_geoid(grid_2km)
-grid_1km.add_mask()
-grid_2km.add_mask(grid_1km)
-grid_4km.add_mask(grid_2km)
+grid_1km.add_rheology()
+grid_2km.add_rheology(grid_1km)
+grid_4km.add_rheology(grid_2km)
 
 for g in [grid_1km,grid_2km,grid_4km]:
     g.print()
