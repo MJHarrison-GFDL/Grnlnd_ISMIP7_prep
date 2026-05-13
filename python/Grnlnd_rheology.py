@@ -59,9 +59,9 @@ class quadmesh:
     def __init__(self,name=None,parent=None):
         self.name = name
         if parent==None:
-            self.x = sgx1km[:-2] # The parent grid contains an odd number of grid cells which is inconvenient for
+            self.x = sgx1km # The parent grid contains an odd number of grid cells which is inconvenient for
                                  # coarsening the data. We are re-defining the grid to instead contain an even number of cells
-            self.y = sgy1km[:-2]
+            self.y = sgy1km
             self.level = 1
         else:
             self.x = parent.x[::2]
@@ -71,9 +71,12 @@ class quadmesh:
 
     def print(self):
         print(self.name,' grid dimensions: ',(self.nj,self.ni))
-        print(self.x.shape,self.y.shape)
         try:
             print('friction_coefficient : (max/min)',self.fralpha.shape,self.fralpha.max(),self.fralpha.min())
+        except:
+            pass
+        try:
+            print('Bbar : (max/min)',self.Bbar.shape,self.Bbar.max(),self.Bbar.min())
         except:
             pass
 
@@ -82,10 +85,9 @@ class quadmesh:
     def add_rheology(self,parent=None):
         if parent is None:
             if self.level == 1:
-                self.fralpha = fralpha1km[:-1,:-1] # cropping the odd cells off the upper-right side of the array
-                print('Added friction coefficient ( for 1km grid mean/std: ',self.fralpha.mean(),self.fralpha.std())
-                self.Bbar = Bbar1km[:-1,:-1] # cropping the odd cells off the upper-right side of the array
-                print('Added Bbar ( for 1km grid mean/std: ',self.Bbar.mean(),self.Bbar.std())
+                self.fralpha = 0.25*(fralpha1km[:-1,:-1]+fralpha1km[:-1,1:]+fralpha1km[1:,:-1]+fralpha1km[1:,1:])
+                self.Bbar = 0.25*(Bbar1km[:-1,:-1]+Bbar1km[:-1,1:]+Bbar1km[1:,:-1]+Bbar1km[1:,1:])
+
         else:
             self.fralpha = 0.25*((parent.fralpha[:-1:2,:-1:2]+parent.fralpha[:-1:2,1::2])+\
                              parent.fralpha[1::2,:-1:2]+parent.fralpha[1::2,1::2])
@@ -99,8 +101,8 @@ class quadmesh:
     def add_vel(self,parent=None):
         if parent is None:
             if self.level == 1:
-                self.vx = vx1km[:-1,:-1] # cropping the odd cells off the upper-right side of the array
-                self.vy = vy1km[:-1,:-1] # cropping the odd cells off the upper-right side of the array
+                self.vx = vx1km
+                self.vy = vy1km
                 print('Added vx for 1km grid mean/std: ',self.vx.mean(),self.vx.std())
                 print('Added vy for 1km grid mean/std: ',self.vy.mean(),self.vy.std())
         else:
@@ -129,42 +131,32 @@ class quadmesh:
         path_out = self.name+'_rheology.nc'
         if path is not None: path_out=path
         print('saving to netcdf, ',path_out, self.name)
-        print(xh.shape)
-        print(yh.shape)
-        print(self.fralpha.shape)
         dA_fr=xr.DataArray(name='friction_coefficient',data=self.fralpha,dims=["y","x"],coords=dict(y=(["y"],yh),x=(["x"],xh)))
         dA_bb=xr.DataArray(name='Bbar',data=self.Bbar,dims=["y","x"],coords=dict(y=(["y"],yh),x=(["x"],xh)))
         ds_out=xr.merge((dA_fr,dA_bb))
         ds_out.to_netcdf(path_out)
 
-path='INPUT_NS/GreenlandISMIP6_BMa5_Control_drag_weertman_abslog_BMa5_interp_d1.nc'
+#path='INPUT_NS/GreenlandISMIP6_BMa5_Control_drag_weertman_abslog_BMa5_interp_d1.nc'
+path='INPUT_NS/GreenlandISMIP7_Control_drag_weertman_abslog_final_interp_d1.nc'
 print('Opening dataset: ',path)
 ds=xr.open_dataset(path)
-#Cell centers xh,yh (m)
-xh=ds['x'].load().data
-yh=ds['y'].load().data
-ni=xh.shape[0];nj=yh.shape[0]
-print('Grid size= ',(ni,nj))
-print('x center coord range: ',(xh[0],xh[-1]))
-print('y center coord range: ',(yh[0],yh[-1]))
+#Cell corners xq,yq (m)
+xq1km=ds['x'].load().data
+yq1km=ds['y'].load().data
+ni=xq1km.shape[0]-1;nj=yq1km.shape[0]-1
+print('Grid size= ',(nj,ni))
+print('x-node coord range: ',(xq1km[0],xq1km[-1]))
+print('y-node coord range: ',(yq1km[0],yq1km[-1]))
+xh1km = 0.5*(xq1km[:-1]+xq1km[1:])
+yh1km = 0.5*(yq1km[:-1]+yq1km[1:])
 #proj4text=ds['mapping'].proj4text
 #proj = CRS.from_proj4(proj4text)
 #print(proj.to_wkt(WktVersion.WKT1_GDAL, pretty=True))
 # Distance between cell centers dx,dy (m)
-dx=xh[1:]-xh[:-1]
-dy=yh[1:]-yh[:-1]
-# quad cell nodal (q) points
-xq1km=xh.copy();yq1km=yh.copy()
-dx_2=0.5*dx;dy_2=0.5*dy
-xq1km[:-1]=xq1km[:-1]-dx_2;xq1km[-1]=xq1km[-1]-dx_2[-1]
-yq1km[:-1]=yq1km[:-1]-dy_2;yq1km[-1]=yq1km[-1]-dy_2[-1]
-xq1km=np.concatenate((xq1km,[xq1km[-1]+dx[-1]]))
-yq1km=np.concatenate((yq1km,[yq1km[-1]+dy[-1]]))
-nip=xq1km.shape[0];njp=yq1km.shape[0]
+dx=xq1km[1:]-xq1km[:-1]
+dy=yq1km[1:]-yq1km[:-1]
 xbnds = (xq1km[0],xq1km[-1])
 ybnds = (yq1km[0],yq1km[-1])
-print('Grid cell y coordinate range: ',xbnds)
-print('Grid cell y coordinate range: ',ybnds)
 # Supergrid (h + q)
 sgx1km=np.zeros(2*ni+1);sgx1km[::2]=xq1km;sgx1km[1::2]=0.5*(sgx1km[0:-1:2]+sgx1km[2::2])
 sgy1km=np.zeros(2*nj+1);sgy1km[::2]=yq1km;sgy1km[1::2]=0.5*(sgy1km[0:-1:2]+sgy1km[2::2])
