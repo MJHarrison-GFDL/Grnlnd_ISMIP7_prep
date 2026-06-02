@@ -94,11 +94,18 @@ class quadmesh:
             if self.level == 1:
                 self.thickness = thick1km
                 print('Added shelf thickness for 1km grid mean/std: ',self.thickness.mean(),self.thickness.std())
+                self.shelf_area = Area1km
+                self.shelf_area[self.thickness==0.]=0.
+                print('Added shelf area for 1km grid mean/std: ',self.shelf_area.mean(),self.shelf_area.std())
         else:
             self.thickness = 0.25*((parent.thickness[:-1:2,:-1:2]+parent.thickness[:-1:2,1::2])+\
                              parent.thickness[1::2,:-1:2]+parent.thickness[1::2,1::2])
             print('Added thickness for child grid mean/std: ',self.thickness.mean(),self.thickness.std())
+            self.shelf_area = ((parent.shelf_area[:-1:2,:-1:2]+parent.shelf_area[:-1:2,1::2])+\
+                             parent.shelf_area[1::2,:-1:2]+parent.shelf_area[1::2,1::2])
+            print('Added shelf_area for child grid mean/std: ',self.shelf_area.mean(),self.shelf_area.std())
         self.fields.append('thickness')
+        self.fields.append('shelf_area')
 
     def add_geoid(self,parent=None):
         if parent is None:
@@ -130,15 +137,27 @@ class quadmesh:
         self.fields.append('vx')
         self.fields.append('vy')
 
+    def adjust_mask_for_MOM6(self):
+        mask=self.mask
+        p5=0.5
+        mask[abs(mask-1.0)<=p5]=0.0  # ice-free land
+        mask[abs(mask-2.0)<=p5]=1.0  # grounded ice
+        mask[abs(mask-3.0)<=p5]=1.0  # floating ice
+        mask[abs(mask)<=p5]=0.0  # ocean
+
+        self.mask=mask.copy()
+
     def add_mask(self,parent=None):
         if parent is None:
             if self.level == 1:
                 self.mask = mask1km
+                self.adjust_mask_for_MOM6()
                 print('Added Mask for 1km grid max/min: ',self.mask.max(),self.mask.min())
         else:
             self.mask = np.round(0.25*((parent.mask[:-1:2,:-1:2]+parent.mask[:-1:2,1::2])+\
                              parent.mask[1::2,:-1:2]+parent.mask[1::2,1::2]))
-            print('Added mask elevation for child grid max/min: ',self.mask.max(),self.mask.min())
+            print('Added mask for child grid max/min: ',self.mask.max(),self.mask.min())
+            self.adjust_mask_for_MOM6()
         self.fields.append('mask')
 
     def to_netcdf(self,path=None):
@@ -171,6 +190,8 @@ proj = CRS.from_proj4(proj4text)
 # Distance between cell centers dx,dy (m)
 dx=xq1km[1:]-xq1km[:-1]
 dy=yq1km[1:]-yq1km[:-1]
+DX,DY=np.meshgrid(dx,dy)
+Area1km = abs(DX*DY) # m2
 xbnds = (xq1km[0],xq1km[-1])
 ybnds = (yq1km[0],yq1km[-1])
 # Supergrid (h + q)
@@ -191,14 +212,15 @@ print('Bed data y-index range: ',(jstart,jend))
 bed1km=np.zeros((nj,ni))
 thick1km=np.zeros((nj,ni))
 geoid1km=np.zeros((nj,ni))
-mask1km=np.zeros((nj,ni)).astype('uint8')
+mask1km=np.zeros((nj,ni)) #.astype('uint8')
 #vx1km=np.zeros((nj,ni))
 #vy1km=np.zeros((nj,ni))
 
 bed=ds['bed'].load().data
 thick=ds['thickness'].load().data
 geoid=ds['geoid'].load().data
-mask=ds['mask'].load().data
+mask=ds['mask'].load().data.astype('float32')
+print('mask max/min= ',mask.max(),mask.min())
 #vx=ds['vx_mosaic'].load().data*thick
 #vy=ds['vy_mosaic'].load().data*thick
 
@@ -209,9 +231,12 @@ for j in  np.arange(jstart,jend-1):
         bed1km[j,i]=bed[j0:j1,i0:i1].mean()
         thick1km[j,i]=thick[j0:j1,i0:i1].mean()
         geoid1km[j,i]=geoid[j0:j1,i0:i1].mean()
-        mask1km[j,i]=np.round(mask[j0:j1,i0:i1].mean()).astype('uint8')
+        #mask1km[j,i]=np.round(mask[j0:j1,i0:i1].mean()).astype('uint8')
+        mask1km[j,i]=mask[j0:j1,i0:i1].mean()
         #vx1km[j,i]=0.25*(vx[j0:j1,i0:i1].sum())/np.maximum(thick1km[j,i],1.e-12)
         #vy1km[j,i]=0.25*(vy[j0:j1,i0:i1].sum())/np.maximum(thick1km[j,i],1.e-12)
+
+print('mask1km max/min= ',mask1km.max(),mask1km.min())
 
 
 grid_1km = quadmesh('Grnld_1km')

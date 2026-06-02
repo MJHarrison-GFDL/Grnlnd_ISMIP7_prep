@@ -87,7 +87,12 @@ class quadmesh:
             if self.level == 1:
                 self.fralpha = 0.25*(fralpha1km[:-1,:-1]+fralpha1km[:-1,1:]+fralpha1km[1:,:-1]+fralpha1km[1:,1:])
                 self.Bbar = 0.25*(Bbar1km[:-1,:-1]+Bbar1km[:-1,1:]+Bbar1km[1:,:-1]+Bbar1km[1:,1:])
-
+                #self.A_glen = self.Bbar.fillna(168239086.57399723)**(-3)
+                #self.tau_b_beta = self.fralpha.fillna(1.e5)**2.0
+                Bbar=self.Bbar
+                Bbar[Bbar==0.]=168239086.57399723
+                self.A_glen = Bbar**(-3)
+                self.tau_b_beta = self.fralpha**2.0
         else:
             self.fralpha = 0.25*((parent.fralpha[:-1:2,:-1:2]+parent.fralpha[:-1:2,1::2])+\
                              parent.fralpha[1::2,:-1:2]+parent.fralpha[1::2,1::2])
@@ -95,45 +100,74 @@ class quadmesh:
             self.Bbar = 0.25*((parent.Bbar[:-1:2,:-1:2]+parent.Bbar[:-1:2,1::2])+\
                              parent.Bbar[1::2,:-1:2]+parent.Bbar[1::2,1::2])
             print('Added Bbar elevation for child grid mean/std: ',self.Bbar.mean(),self.Bbar.std())
-
+            #self.A_glen = self.Bbar.fillna(168239086.57399723)**(-3)
+            #self.tau_b_beta = self.fralpha.fillna(1.e5)**2.0
+            self.A_glen = self.Bbar**(-3)
+            self.tau_b_beta = self.fralpha**2.0
 
 
     def add_vel(self,parent=None):
         if parent is None:
             if self.level == 1:
-                self.vx = vx1km
-                self.vy = vy1km
-                print('Added vx for 1km grid mean/std: ',self.vx.mean(),self.vx.std())
-                print('Added vy for 1km grid mean/std: ',self.vy.mean(),self.vy.std())
+                self.uvel =  vx_obs1km
+                self.vvel =  vy_obs1km
+                self.float_frac = float_frac1km
+                print('Added uvel for 1km grid mean/std: ',self.uvel.mean(),self.uvel.std())
+                print('Added vvel for 1km grid mean/std: ',self.vvel.mean(),self.vvel.std())
         else:
+            """
+            ## This is the preferred way - mjh
             vh = parent.vx*parent.thickness
             self.vx =0.25*((vh[:-1:2,:-1:2]+vh[:-1:2,1::2])+\
-                      vh[1::2,:-1:2]+vh[1::2,1::2])/np.maximum(self.thickness,1.e-12)
+                      vh[1::2,:-1:2]+vh[1::2,1::2])/np.maximum(self.thickness,1.e-10)
             vh = parent.vy*parent.thickness
             self.vy =0.25*((vh[:-1:2,:-1:2]+vh[:-1:2,1::2])+\
-                      vh[1::2,:-1:2]+vh[1::2,1::2])/np.maximum(self.thickness,1.e-12)
-            print('Added vx for child grid mean/std: ',self.vx.mean(),self.vx.std())
-            print('Added vy for child grid mean/std: ',self.vy.mean(),self.vy.std())
+                      vh[1::2,:-1:2]+vh[1::2,1::2])/np.maximum(self.thickness,1.e-10)
+            """
+            self.uvel = parent.uvel[::2,::2]
+            self.vvel = parent.vvel[::2,::2]
 
-    def add_mask(self,parent=None):
+            print('Added vx for child grid mean/std: ',self.uvel.mean(),self.uvel.std())
+            print('Added vy for child grid mean/std: ',self.vvel.mean(),self.vvel.std())
+
+            self.float_frac = 0.25*((parent.float_frac[:-1:2,:-1:2]+parent.float_frac[:-1:2,1::2])+\
+                             parent.float_frac[1::2,:-1:2]+parent.float_frac[1::2,1::2])
+
+    def add_velmask(self,parent=None):
         if parent is None:
             if self.level == 1:
-                self.mask = mask1km[:-1,:-1] # cropping the odd cells off the upper-right side of the array
-                print('Added Mask for 1km grid max/min: ',self.mask.max(),self.mask.min())
+                self.umask = umask1km
+                print('Added umask for 1km grid max/min: ',self.umask.max(),self.umask.min())
+                self.vmask = vmask1km
+                print('Added vmask for 1km grid max/min: ',self.vmask.max(),self.vmask.min())
         else:
-            self.mask = np.round(0.25*((parent.mask[:-1:2,:-1:2]+parent.mask[:-1:2,1::2])+\
-                             parent.mask[1::2,:-1:2]+parent.mask[1::2,1::2]))
-            print('Added mask elevation for child grid max/min: ',self.mask.max(),self.mask.min())
+            self.umask = parent.umask[::2,::2]
+            self.vmask = parent.vmask[::2,::2]
+
+            print('Added umask for child grid max/min: ',self.umask.max(),self.umask.min())
+            print('Added umask for child grid max/min: ',self.vmask.max(),self.vmask.min())
 
     def to_netcdf(self,path=None):
         xh=self.x[1::2]
         yh=self.y[1::2]
+        xq=self.x[::2]
+        yq=self.y[::2]
         path_out = self.name+'_rheology.nc'
         if path is not None: path_out=path
         print('saving to netcdf, ',path_out, self.name)
         dA_fr=xr.DataArray(name='friction_coefficient',data=self.fralpha,dims=["y","x"],coords=dict(y=(["y"],yh),x=(["x"],xh)))
+        dA_A_glen=xr.DataArray(name='A_glen',data=self.A_glen,dims=["y","x"],coords=dict(y=(["y"],yh),x=(["x"],xh)))
         dA_bb=xr.DataArray(name='Bbar',data=self.Bbar,dims=["y","x"],coords=dict(y=(["y"],yh),x=(["x"],xh)))
-        ds_out=xr.merge((dA_fr,dA_bb))
+        dA_tau_b_beta=xr.DataArray(name='tau_b_beta',data=self.tau_b_beta,dims=["y","x"],coords=dict(y=(["y"],yh),x=(["x"],xh)))
+        ds_out=xr.merge([dA_fr,dA_bb,dA_A_glen,dA_tau_b_beta])
+        ds_out.to_netcdf(path_out)
+        path_out = self.name+'_velocity.nc'
+        dA_uvel=xr.DataArray(name='uvel',data=self.uvel,dims=["yp","xp"],coords=dict(yp=(["yp"],yq),xp=(["xp"],xq)))
+        dA_vvel=xr.DataArray(name='vvel',data=self.vvel,dims=["yp","xp"],coords=dict(yp=(["yp"],yq),xp=(["xp"],xq)))
+        dA_umask=xr.DataArray(name='umask',data=self.umask,dims=["yp","xp"],coords=dict(yp=(["yp"],yq),xp=(["xp"],xq)))
+        dA_vmask=xr.DataArray(name='vmask',data=self.vmask,dims=["yp","xp"],coords=dict(yp=(["yp"],yq),xp=(["xp"],xq)))
+        dA_floatfrac=xr.DataArray(name='float_frac',data=self.float_frac,dims=["y","x"],coords=dict(y=(["y"],yh),x=(["x"],xh)))
+        ds_out=xr.merge([dA_uvel,dA_vvel,dA_umask,dA_vmask,dA_floatfrac])
         ds_out.to_netcdf(path_out)
 
 #path='INPUT_NS/GreenlandISMIP6_BMa5_Control_drag_weertman_abslog_BMa5_interp_d1.nc'
@@ -143,7 +177,8 @@ ds=xr.open_dataset(path)
 #Cell corners xq,yq (m)
 xq1km=ds['x'].load().data
 yq1km=ds['y'].load().data
-ni=xq1km.shape[0]-1;nj=yq1km.shape[0]-1
+nip=xq1km.shape[0];njp=yq1km.shape[0]
+ni=nip-1;nj=njp-1;
 print('Grid size= ',(nj,ni))
 print('x-node coord range: ',(xq1km[0],xq1km[-1]))
 print('y-node coord range: ',(yq1km[0],yq1km[-1]))
@@ -167,6 +202,11 @@ print('y bnds: ',(yq1km[0],yq1km[-1]))
 
 fralpha1km=ds['friction_coefficient'].fillna(0.).load().data
 Bbar1km=ds['Bbar'].fillna(0.).load().data
+vx_obs1km=ds['vx_obs'].fillna(0.).load().data
+vy_obs1km=ds['vy_obs'].fillna(0.).load().data
+umask1km = np.zeros((njp,nip))-1
+vmask1km = np.zeros((njp,nip))-1
+float_frac1km = np.zeros((nj,ni))
 
 
 grid_1km = quadmesh('Grnld_1km')
@@ -179,6 +219,12 @@ print('Greenland 2km supergrid: ',(grid_4km.nj,grid_4km.ni))
 grid_1km.add_rheology()
 grid_2km.add_rheology(grid_1km)
 grid_4km.add_rheology(grid_2km)
+grid_1km.add_velmask()
+grid_2km.add_velmask(grid_1km)
+grid_4km.add_velmask(grid_2km)
+grid_1km.add_vel()
+grid_2km.add_vel(grid_1km)
+grid_4km.add_vel(grid_2km)
 
 for g in [grid_1km,grid_2km,grid_4km]:
     g.print()
