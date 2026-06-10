@@ -59,8 +59,7 @@ class quadmesh:
     def __init__(self,name=None,parent=None):
         self.name = name
         if parent==None:
-            self.x = sgx1km # The parent grid contains an odd number of grid cells which is inconvenient for
-                                 # coarsening the data. We are re-defining the grid to instead contain an even number of cells
+            self.x = sgx1km
             self.y = sgy1km
             self.level = 1
         else:
@@ -104,6 +103,10 @@ class quadmesh:
         dA_acabf.time.attrs['units']=time.units
         dA_acabf.time.attrs['calendar']=time.calendar
         dA_acabf.time.attrs['axis']='T'
+        dA_acabf.time.attrs['modulo']=' '
+        dA_acabf.time.attrs['cartesian_axis']='T'
+        dA_acabf.x.attrs['cartesian_axis']='X'
+        dA_acabf.y.attrs['cartesian_axis']='Y'
         dA_acabf.to_netcdf(path_out)
 
 path='FORCING/acabf_GrIS_CESM2-WACCM_historical_SDBN1_v2_1850.nc'

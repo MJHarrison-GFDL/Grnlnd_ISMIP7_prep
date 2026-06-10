@@ -59,8 +59,7 @@ class quadmesh:
     def __init__(self,name=None,parent=None):
         self.name = name
         if parent==None:
-            self.x = sgx1km # The parent grid contains an odd number of grid cells which is inconvenient for
-                                 # coarsening the data. We are re-defining the grid to instead contain an even number of cells
+            self.x = sgx1km
             self.y = sgy1km
             self.level = 1
         else:
@@ -159,6 +158,10 @@ class quadmesh:
         dA_A_glen=xr.DataArray(name='A_glen',data=self.A_glen,dims=["y","x"],coords=dict(y=(["y"],yh),x=(["x"],xh)))
         dA_bb=xr.DataArray(name='Bbar',data=self.Bbar,dims=["y","x"],coords=dict(y=(["y"],yh),x=(["x"],xh)))
         dA_tau_b_beta=xr.DataArray(name='tau_b_beta',data=self.tau_b_beta,dims=["y","x"],coords=dict(y=(["y"],yh),x=(["x"],xh)))
+        for d_ in [dA_fr,dA_A_glen,dA_bb,dA_tau_b_beta]:
+            d_.coords['x'].attrs['cartesian_axis']='X'
+            d_.coords['y'].attrs['cartesian_axis']='Y'
+
         ds_out=xr.merge([dA_fr,dA_bb,dA_A_glen,dA_tau_b_beta])
         ds_out.to_netcdf(path_out)
         path_out = self.name+'_velocity.nc'
@@ -166,7 +169,13 @@ class quadmesh:
         dA_vvel=xr.DataArray(name='vvel',data=self.vvel,dims=["yp","xp"],coords=dict(yp=(["yp"],yq),xp=(["xp"],xq)))
         dA_umask=xr.DataArray(name='umask',data=self.umask,dims=["yp","xp"],coords=dict(yp=(["yp"],yq),xp=(["xp"],xq)))
         dA_vmask=xr.DataArray(name='vmask',data=self.vmask,dims=["yp","xp"],coords=dict(yp=(["yp"],yq),xp=(["xp"],xq)))
+        for d_ in [dA_uvel,dA_vvel,dA_umask,dA_vmask]:
+            d_.coords['xp'].attrs['cartesian_axis']='X'
+            d_.coords['yp'].attrs['cartesian_axis']='Y'
+
         dA_floatfrac=xr.DataArray(name='float_frac',data=self.float_frac,dims=["y","x"],coords=dict(y=(["y"],yh),x=(["x"],xh)))
+        dA_floatfrac.coords['x'].attrs['cartesian_axis']='X'
+        dA_floatfrac.coords['y'].attrs['cartesian_axis']='Y'
         ds_out=xr.merge([dA_uvel,dA_vvel,dA_umask,dA_vmask,dA_floatfrac])
         ds_out.to_netcdf(path_out)
 
@@ -202,8 +211,9 @@ print('y bnds: ',(yq1km[0],yq1km[-1]))
 
 fralpha1km=ds['friction_coefficient'].fillna(0.).load().data
 Bbar1km=ds['Bbar'].fillna(0.).load().data
-vx_obs1km=ds['vx_obs'].fillna(0.).load().data
-vy_obs1km=ds['vy_obs'].fillna(0.).load().data
+yr_p_sec=1.0/8.64e4/365.25
+vx_obs1km=ds['vx_obs'].fillna(0.).load().data*yr_p_sec # convert to m/s from m/yr
+vy_obs1km=ds['vy_obs'].fillna(0.).load().data*yr_p_sec
 umask1km = np.zeros((njp,nip))-1
 vmask1km = np.zeros((njp,nip))-1
 float_frac1km = np.zeros((nj,ni))
@@ -226,12 +236,41 @@ grid_1km.add_vel()
 grid_2km.add_vel(grid_1km)
 grid_4km.add_vel(grid_2km)
 
+"""
+ds_1km=xr.open_dataset('Grnld_1km.nc')
+ds_2km=xr.open_dataset('Grnld_2km.nc')
+ds_4km=xr.open_dataset('Grnld_4km.nc')
+
+mask_1km=ds_1km['mask'].load().data
+thick_1km=ds_1km['thickness'].load().data
+mask_1km[thick_1km>0.]=1.0
+ds_1km['mask'].data=mask_1km
+mask_2km=ds_2km['mask'].load().data
+thick_2km=ds_2km['thickness'].load().data
+mask_2km[thick_2km>0.]=1.0
+ds_2km['mask'].data=mask_2km
+mask_4km=ds_4km['mask'].load().data
+thick_4km=ds_4km['thickness'].load().data
+mask_4km[thick_4km>0.]=1.0
+ds_4km['mask'].data=mask_4km
+
+ds_1km_=ds_1km.rename({'mask':'h_mask'})
+ds_2km_=ds_2km.rename({'mask':'h_mask'})
+ds_4km_=ds_4km.rename({'mask':'h_mask'})
+
+ds_1km_.to_netcdf('Grnld_hmask_1km.nc',mode='w')
+ds_2km_.to_netcdf('Grnld_hmask_2km.nc',mode='w')
+ds_4km_.to_netcdf('Grnld_hmask_4km.nc',mode='w')
+"""
 for g in [grid_1km,grid_2km,grid_4km]:
     g.print()
 
 grid_1km.to_netcdf()
 grid_2km.to_netcdf()
 grid_4km.to_netcdf()
+
+
+
 raise()
 
 #trans = Transformer.from_crs(bm_proj,m_proj)

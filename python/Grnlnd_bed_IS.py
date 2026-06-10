@@ -138,27 +138,26 @@ class quadmesh:
         self.fields.append('vy')
 
     def adjust_mask_for_MOM6(self):
-        mask=self.mask
+        mask=self.h_mask
         p5=0.5
         mask[abs(mask-1.0)<=p5]=0.0  # ice-free land
         mask[abs(mask-2.0)<=p5]=1.0  # grounded ice
         mask[abs(mask-3.0)<=p5]=1.0  # floating ice
         mask[abs(mask)<=p5]=0.0  # ocean
 
-        self.mask=mask.copy()
+        self.h_mask=mask.copy()
 
     def add_mask(self,parent=None):
         if parent is None:
             if self.level == 1:
-                self.mask = mask1km
+                self.h_mask = mask1km
                 self.adjust_mask_for_MOM6()
                 print('Added Mask for 1km grid max/min: ',self.mask.max(),self.mask.min())
         else:
-            self.mask = np.round(0.25*((parent.mask[:-1:2,:-1:2]+parent.mask[:-1:2,1::2])+\
-                             parent.mask[1::2,:-1:2]+parent.mask[1::2,1::2]))
-            print('Added mask for child grid max/min: ',self.mask.max(),self.mask.min())
-            self.adjust_mask_for_MOM6()
-        self.fields.append('mask')
+            self.h_mask = np.round(0.25*((parent.h_mask[:-1:2,:-1:2]+parent.h_mask[:-1:2,1::2])+\
+                             parent.h_mask[1::2,:-1:2]+parent.h_mask[1::2,1::2]))
+            print('Added mask for child grid max/min: ',self.h_mask.max(),self.h_mask.min())
+        self.fields.append('h_mask')
 
     def to_netcdf(self,path=None):
         xh=self.x[1::2]
@@ -167,7 +166,10 @@ class quadmesh:
         if path is not None: path_out=path
         dA_out = []
         for f in self.fields:
-            eval("dA_out.append(xr.DataArray(name=\'"+f+"\',data=self."+f+",dims=[\"y\",\"x\"],coords=dict(y=([\"y\"],yh),x=([\"x\"],xh))))")
+            dA_=eval("xr.DataArray(name=\'"+f+"\',data=self."+f+",dims=[\"y\",\"x\"],coords=dict(y=([\"y\"],yh),x=([\"x\"],xh)))")
+            dA_.x.attrs['cartesian_axis']='X'
+            dA_.y.attrs['cartesian_axis']='Y'
+            dA_out.append(dA_)
 
         ds_out = xr.merge(dA_out)
         ds_out.to_netcdf(path_out)
@@ -231,7 +233,6 @@ for j in  np.arange(jstart,jend-1):
         bed1km[j,i]=bed[j0:j1,i0:i1].mean()
         thick1km[j,i]=thick[j0:j1,i0:i1].mean()
         geoid1km[j,i]=geoid[j0:j1,i0:i1].mean()
-        #mask1km[j,i]=np.round(mask[j0:j1,i0:i1].mean()).astype('uint8')
         mask1km[j,i]=mask[j0:j1,i0:i1].mean()
         #vx1km[j,i]=0.25*(vx[j0:j1,i0:i1].sum())/np.maximum(thick1km[j,i],1.e-12)
         #vy1km[j,i]=0.25*(vy[j0:j1,i0:i1].sum())/np.maximum(thick1km[j,i],1.e-12)
@@ -246,15 +247,24 @@ grid_4km = quadmesh('Grnld_4km',parent=grid_2km)
 grid_1km.add_bed()
 grid_2km.add_bed(grid_1km)
 grid_4km.add_bed(grid_2km)
+
 grid_1km.add_thickness()
 grid_2km.add_thickness(grid_1km)
 grid_4km.add_thickness(grid_2km)
+
+
+## Make sure h_mask consistent with thickness
+grid_1km.h_mask[grid_1km.thickness>0.]=0.0
+grid_2km.h_mask[grid_2km.thickness>0.]=0.0
+grid_4km.h_mask[grid_4km.thickness>0.]=0.0
+
 grid_1km.add_geoid()
 grid_2km.add_geoid(grid_1km)
 grid_4km.add_geoid(grid_2km)
 grid_1km.add_mask()
 grid_2km.add_mask(grid_1km)
 grid_4km.add_mask(grid_2km)
+
 #grid_1km.add_vel()
 #grid_2km.add_vel(grid_1km)
 #grid_4km.add_vel(grid_2km)
