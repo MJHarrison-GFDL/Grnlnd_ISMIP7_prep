@@ -25,17 +25,18 @@ c. Download ISMIP7 datasets (e.g. /path_to_ISMIP_data)
 
 d. Link to current directory  ( ln -s /path_to_ISMIP_data INPUT)
 
-e. Run script (python python/create_ISMIP7_inputs.py)
+e.  ln -s /path_to_rheology INPUT_NS
 
-f. Inspect results (Grnlnd_1km.nc, Grnlnd_2km.nc, Grnlnd_4km.nc)
+f. Run scripts
+
+   - python python/Grnld_bed_IS.py
+   - python python/Grnlnd_forcing.py
+   - python python/Grnlnd_rheology.py
 
 
-Optional (regridding rheology):
 
-g.  ln -s /path_to_rheology INPUT_NS
+g. Replace files with updated hmask (this step will go away)
 
-   e.g. /archive/n2s/projGFDL_backup/GreenlandOM5_2023/outfiles_gridded
-
-h. Run rheology script (python python/Grnlnd_rheology.py)
-
-i. Inspect results ( Grnlnd_1km_rheology.nc, ...)
+   - mv Grnld_hmask_1km.nc Grnld_1km.nc
+   - mv Grnld_hmask_2km.nc Grnld_2km.nc
+   - mv Grnld_hmask_4km.nc Grnld_4km.nc
