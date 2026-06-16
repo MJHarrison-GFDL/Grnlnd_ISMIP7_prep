@@ -101,13 +101,13 @@ class quadmesh:
         print('saving to netcdf, ',path_out, self.name)
         dA_acabf=xr.DataArray(name='acabf',data=self.acabf,dims=["time","y","x"],coords=dict(time=(["time"],time.data),y=(["y"],yh),x=(["x"],xh)))
         dA_acabf.time.attrs['units']=time.units
-        dA_acabf.time.attrs['calendar']=time.calendar
+        dA_acabf.time.attrs['calendar']='noleap'
         dA_acabf.time.attrs['axis']='T'
         dA_acabf.time.attrs['modulo']=' '
         dA_acabf.time.attrs['cartesian_axis']='T'
         dA_acabf.x.attrs['cartesian_axis']='X'
         dA_acabf.y.attrs['cartesian_axis']='Y'
-        dA_acabf.to_netcdf(path_out)
+        dA_acabf.to_netcdf(path_out,unlimited_dims=['time',])
 
 path='FORCING/acabf_GrIS_CESM2-WACCM_historical_SDBN1_v2_1850.nc'
 print('Opening dataset: ',path)
