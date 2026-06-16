@@ -219,6 +219,7 @@ vmask1km = np.zeros((njp,nip))-1
 float_frac1km = np.zeros((nj,ni))
 
 
+
 grid_1km = quadmesh('Grnld_1km')
 print('Greenland supergrid: ',(grid_1km.nj,grid_1km.ni))
 grid_2km = quadmesh('Grnld_2km',parent=grid_1km)
@@ -236,32 +237,27 @@ grid_1km.add_vel()
 grid_2km.add_vel(grid_1km)
 grid_4km.add_vel(grid_2km)
 
-"""
 ds_1km=xr.open_dataset('Grnld_1km.nc')
 ds_2km=xr.open_dataset('Grnld_2km.nc')
 ds_4km=xr.open_dataset('Grnld_4km.nc')
 
-mask_1km=ds_1km['mask'].load().data
-thick_1km=ds_1km['thickness'].load().data
-mask_1km[thick_1km>0.]=1.0
-ds_1km['mask'].data=mask_1km
-mask_2km=ds_2km['mask'].load().data
-thick_2km=ds_2km['thickness'].load().data
-mask_2km[thick_2km>0.]=1.0
-ds_2km['mask'].data=mask_2km
-mask_4km=ds_4km['mask'].load().data
-thick_4km=ds_4km['thickness'].load().data
-mask_4km[thick_4km>0.]=1.0
-ds_4km['mask'].data=mask_4km
+mask_1km=ds_1km['h_mask'].load().data
+mask_1km[grid_1km.tau_b_beta>0.]=1.0
+mask_1km[grid_1km.tau_b_beta==0.]=0.0
+ds_1km['h_mask'].data=mask_1km[::-1,:]
+mask_2km=ds_2km['h_mask'].load().data
+mask_2km[grid_2km.tau_b_beta>0.]=1.0
+mask_2km[grid_2km.tau_b_beta==0.]=0.0
+ds_2km['h_mask'].data=mask_2km[::-1,:]
+mask_4km=ds_4km['h_mask'].load().data
+mask_4km[grid_4km.tau_b_beta>0.]=1.0
+mask_4km[grid_4km.tau_b_beta==0.]=0.0
+ds_4km['h_mask'].data=mask_4km[::-1,:]
 
-ds_1km_=ds_1km.rename({'mask':'h_mask'})
-ds_2km_=ds_2km.rename({'mask':'h_mask'})
-ds_4km_=ds_4km.rename({'mask':'h_mask'})
+ds_1km.to_netcdf('Grnld_hmask_1km.nc',mode='w')
+ds_2km.to_netcdf('Grnld_hmask_2km.nc',mode='w')
+ds_4km.to_netcdf('Grnld_hmask_4km.nc',mode='w')
 
-ds_1km_.to_netcdf('Grnld_hmask_1km.nc',mode='w')
-ds_2km_.to_netcdf('Grnld_hmask_2km.nc',mode='w')
-ds_4km_.to_netcdf('Grnld_hmask_4km.nc',mode='w')
-"""
 for g in [grid_1km,grid_2km,grid_4km]:
     g.print()
 

@@ -152,7 +152,7 @@ class quadmesh:
             if self.level == 1:
                 self.h_mask = mask1km
                 self.adjust_mask_for_MOM6()
-                print('Added Mask for 1km grid max/min: ',self.mask.max(),self.mask.min())
+                print('Added Mask for 1km grid max/min: ',self.h_mask.max(),self.h_mask.min())
         else:
             self.h_mask = np.round(0.25*((parent.h_mask[:-1:2,:-1:2]+parent.h_mask[:-1:2,1::2])+\
                              parent.h_mask[1::2,:-1:2]+parent.h_mask[1::2,1::2]))
@@ -222,7 +222,9 @@ bed=ds['bed'].load().data
 thick=ds['thickness'].load().data
 geoid=ds['geoid'].load().data
 mask=ds['mask'].load().data.astype('float32')
-print('mask max/min= ',mask.max(),mask.min())
+print('thick max/min= ',thick.max(),thick.min())
+min_thick=10.0
+thick[np.logical_and(thick<min_thick,thick>0.)]=min_thick
 #vx=ds['vx_mosaic'].load().data*thick
 #vy=ds['vy_mosaic'].load().data*thick
 
@@ -253,17 +255,17 @@ grid_2km.add_thickness(grid_1km)
 grid_4km.add_thickness(grid_2km)
 
 
-## Make sure h_mask consistent with thickness
-grid_1km.h_mask[grid_1km.thickness>0.]=0.0
-grid_2km.h_mask[grid_2km.thickness>0.]=0.0
-grid_4km.h_mask[grid_4km.thickness>0.]=0.0
-
 grid_1km.add_geoid()
 grid_2km.add_geoid(grid_1km)
 grid_4km.add_geoid(grid_2km)
 grid_1km.add_mask()
 grid_2km.add_mask(grid_1km)
 grid_4km.add_mask(grid_2km)
+
+## Make sure h_mask consistent with thickness
+grid_1km.h_mask[grid_1km.thickness>0.]=0.0
+grid_2km.h_mask[grid_2km.thickness>0.]=0.0
+grid_4km.h_mask[grid_4km.thickness>0.]=0.0
 
 #grid_1km.add_vel()
 #grid_2km.add_vel(grid_1km)
