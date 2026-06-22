@@ -232,7 +232,7 @@ thick[np.logical_and(thick<min_thick,thick>0.)]=min_thick
 for j in  np.arange(jstart,jend-1):
     for i in np.arange(istart,iend-1):
         [(i0,j0),(i1,j1)]= find_in_domain([(xq1km[i],yq1km[j]),(xq1km[i+1],yq1km[j+1])],xb,yb)
-        bed1km[j,i]=bed[j0:j1,i0:i1].mean()
+        bed1km[j,i]=-bed[j0:j1,i0:i1].mean()
         thick1km[j,i]=thick[j0:j1,i0:i1].mean()
         geoid1km[j,i]=geoid[j0:j1,i0:i1].mean()
         mask1km[j,i]=mask[j0:j1,i0:i1].mean()
