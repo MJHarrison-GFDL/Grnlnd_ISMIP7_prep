@@ -3,6 +3,7 @@ import xarray as xr  # netCDF library
 from pyproj import CRS
 from pyproj.enums import WktVersion
 from pyproj import Transformer
+import os
 
 def find_in_domain(bnds,x,y):
     """
@@ -204,16 +205,24 @@ ybnds = (yq1km[0],yq1km[-1])
 # Supergrid (h + q)
 sgx1km=np.zeros(2*ni+1);sgx1km[::2]=xq1km;sgx1km[1::2]=0.5*(sgx1km[0:-1:2]+sgx1km[2::2])
 sgy1km=np.zeros(2*nj+1);sgy1km[::2]=yq1km;sgy1km[1::2]=0.5*(sgy1km[0:-1:2]+sgy1km[2::2])
-
+# flip y-axis
+sgy1km=sgy1km[::-1]
 
 print('x bnds: ',(xq1km[0],xq1km[-1]))
 print('y bnds: ',(yq1km[0],yq1km[-1]))
 
 fralpha1km=ds['friction_coefficient'].fillna(0.).load().data
 Bbar1km=ds['Bbar'].fillna(0.).load().data
+# flip y-axis
+fralpha1km=fralpha1km[::-1,:]
+Bbar1km=Bbar1km[::-1,:]
 yr_p_sec=1.0/8.64e4/365.25
 vx_obs1km=ds['vx_obs'].fillna(0.).load().data*yr_p_sec # convert to m/s from m/yr
 vy_obs1km=ds['vy_obs'].fillna(0.).load().data*yr_p_sec
+# flip y-axis
+vx_obs1km=vx_obs1km[::-1,:]
+vy_obs1km=vy_obs1km[::-1,:]
+
 umask1km = np.zeros((njp,nip))-1
 vmask1km = np.zeros((njp,nip))-1
 float_frac1km = np.zeros((nj,ni))
@@ -254,9 +263,14 @@ mask_4km[grid_4km.tau_b_beta>0.]=1.0
 mask_4km[grid_4km.tau_b_beta==0.]=0.0
 ds_4km['h_mask'].data=mask_4km[::-1,:]
 
-ds_1km.to_netcdf('Grnld_hmask_1km.nc',mode='w')
-ds_2km.to_netcdf('Grnld_hmask_2km.nc',mode='w')
-ds_4km.to_netcdf('Grnld_hmask_4km.nc',mode='w')
+
+print('Overwriting original Grnld_xkm.nc files with updated h_mask')
+os.remove('Grnld_1km.nc')
+ds_1km.to_netcdf('Grnld_1km.nc',mode='w')
+os.remove('Grnld_2km.nc')
+ds_2km.to_netcdf('Grnld_2km.nc',mode='w')
+os.remove('Grnld_4km.nc')
+ds_4km.to_netcdf('Grnld_4km.nc',mode='w')
 
 for g in [grid_1km,grid_2km,grid_4km]:
     g.print()
