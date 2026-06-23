@@ -9,9 +9,9 @@ def find_in_domain(bnds,x,y):
     Find bounding region for x,y grid
     """
     i0=np.where(x>=bnds[0][0])[0][0]
-    j0=np.where(y<bnds[0][1])[0][0]
-    i1=np.where(x>=bnds[1][0])[0][0]
-    j1=np.where(y<bnds[1][1])[0][0]
+    j0=np.where(y>=bnds[0][1])[0][0]
+    i1=np.where(x>bnds[1][0])[0][0]
+    j1=np.where(y>bnds[1][1])[0][0]
 
     return [(i0,j0),(i1,j1)]
 
@@ -184,6 +184,9 @@ ni=xq1km.shape[0]-1;nj=yq1km.shape[0]-1
 print('Grid size= ',(nj,ni))
 print('x-node coord range: ',(xq1km[0],xq1km[-1]))
 print('y-node coord range: ',(yq1km[0],yq1km[-1]))
+# invert y-axis
+print('flipping y-axis for MOM6')
+yq1km=yq1km[::-1]
 xh1km = 0.5*(xq1km[:-1]+xq1km[1:])
 yh1km = 0.5*(yq1km[:-1]+yq1km[1:])
 proj4text=ds['mapping'].proj4text
@@ -193,7 +196,7 @@ proj = CRS.from_proj4(proj4text)
 dx=xq1km[1:]-xq1km[:-1]
 dy=yq1km[1:]-yq1km[:-1]
 DX,DY=np.meshgrid(dx,dy)
-Area1km = abs(DX*DY) # m2
+Area1km = DX*DY # m2
 xbnds = (xq1km[0],xq1km[-1])
 ybnds = (yq1km[0],yq1km[-1])
 # Supergrid (h + q)
@@ -201,9 +204,12 @@ sgx1km=np.zeros(2*ni+1);sgx1km[::2]=xq1km;sgx1km[1::2]=0.5*(sgx1km[0:-1:2]+sgx1k
 sgy1km=np.zeros(2*nj+1);sgy1km[::2]=yq1km;sgy1km[1::2]=0.5*(sgy1km[0:-1:2]+sgy1km[2::2])
 
 
+
 # bed depth (m)
 xb=ds['x'].load().data
 yb=ds['y'].load().data
+#invert y axis
+yb=yb[::-1]
 print('xbed bnds: ',(xb[0],xb[-1]))
 print('ybed bnds: ',(yb[0],yb[-1]))
 # Find start and end indices of bed data within the 1km domain
@@ -219,9 +225,13 @@ mask1km=np.zeros((nj,ni)) #.astype('uint8')
 #vy1km=np.zeros((nj,ni))
 
 bed=ds['bed'].load().data
+bed=bed[::-1,:]
 thick=ds['thickness'].load().data
+thick=thick[::-1,:]
 geoid=ds['geoid'].load().data
+geoid=geoid[::-1,:]
 mask=ds['mask'].load().data.astype('float32')
+mask=mask[::-1,:]
 print('thick max/min= ',thick.max(),thick.min())
 min_thick=10.0
 thick[np.logical_and(thick<min_thick,thick>0.)]=min_thick

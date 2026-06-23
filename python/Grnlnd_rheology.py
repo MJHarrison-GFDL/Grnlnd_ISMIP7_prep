@@ -5,53 +5,6 @@ from pyproj.enums import WktVersion
 from pyproj import Transformer
 import os
 
-def find_in_domain(bnds,x,y):
-    """
-    Find bounding region for x,y grid
-    """
-    i0=np.where(x>=bnds[0][0])[0][0]
-    j0=np.where(y<bnds[0][1])[0][0]
-    i1=np.where(x>=bnds[1][0])[0][0]
-    j1=np.where(y<bnds[1][1])[0][0]
-
-    return [(i0,j0),(i1,j1)]
-
-
-def linfit2d(x,y,z):
-          """
-      Fit a set of points in 2-d to a cartesian plane.
-
-          z = a[0] + a[1]x + a[2]y
-          """
-          a_init = [0.0,0.0,0.0]
-          fitfunc = lambda a, x, y: a[0] + a[1]*x + a[2]*y
-          ff= fitfunc(a_init,x,y)
-          errfunc = lambda a, x, y, z: z - fitfunc(a,x,y)
-          err_res= errfunc(a_init,x,y,z)
-          out = optimize.leastsq(errfunc,a_init,args=(x.flatten(),y.flatten(),z.flatten()),full_output=1)
-          a_final=out[0]
-
-          return a_final
-
-def coarsen_2d(arr, block_size):
-    """
-    Coarsens a 2D array by averaging blocks of size block_size.
-    Example: block_size=(2, 2) averages 2x2 cells into 1 cell.
-    """
-    m, n = arr.shape
-    by, bx = block_size
-
-    # Reshape into (new_rows, block_height, new_cols, block_width)
-    reshaped = arr.reshape(m // by, by, n // bx, bx)
-
-    # Average across the block dimensions (axis 1 and 3)
-    return reshaped.mean(axis=(1, 3))
-
-
-
-
-
-
 
 class quadmesh:
     """
@@ -206,7 +159,7 @@ ybnds = (yq1km[0],yq1km[-1])
 sgx1km=np.zeros(2*ni+1);sgx1km[::2]=xq1km;sgx1km[1::2]=0.5*(sgx1km[0:-1:2]+sgx1km[2::2])
 sgy1km=np.zeros(2*nj+1);sgy1km[::2]=yq1km;sgy1km[1::2]=0.5*(sgy1km[0:-1:2]+sgy1km[2::2])
 # flip y-axis
-sgy1km=sgy1km[::-1]
+#sgy1km=sgy1km[::-1]
 
 print('x bnds: ',(xq1km[0],xq1km[-1]))
 print('y bnds: ',(yq1km[0],yq1km[-1]))
@@ -214,14 +167,14 @@ print('y bnds: ',(yq1km[0],yq1km[-1]))
 fralpha1km=ds['friction_coefficient'].fillna(0.).load().data
 Bbar1km=ds['Bbar'].fillna(0.).load().data
 # flip y-axis
-fralpha1km=fralpha1km[::-1,:]
-Bbar1km=Bbar1km[::-1,:]
+#fralpha1km=fralpha1km[::-1,:]
+#Bbar1km=Bbar1km[::-1,:]
 yr_p_sec=1.0/8.64e4/365.25
 vx_obs1km=ds['vx_obs'].fillna(0.).load().data*yr_p_sec # convert to m/s from m/yr
 vy_obs1km=ds['vy_obs'].fillna(0.).load().data*yr_p_sec
 # flip y-axis
-vx_obs1km=vx_obs1km[::-1,:]
-vy_obs1km=vy_obs1km[::-1,:]
+#vx_obs1km=vx_obs1km[::-1,:]
+#vy_obs1km=vy_obs1km[::-1,:]
 
 umask1km = np.zeros((njp,nip))-1
 vmask1km = np.zeros((njp,nip))-1
@@ -253,15 +206,15 @@ ds_4km=xr.open_dataset('Grnld_4km.nc')
 mask_1km=ds_1km['h_mask'].load().data
 mask_1km[grid_1km.tau_b_beta>0.]=1.0
 mask_1km[grid_1km.tau_b_beta==0.]=0.0
-ds_1km['h_mask'].data=mask_1km[::-1,:]
+#ds_1km['h_mask'].data=mask_1km[::-1,:]
 mask_2km=ds_2km['h_mask'].load().data
 mask_2km[grid_2km.tau_b_beta>0.]=1.0
 mask_2km[grid_2km.tau_b_beta==0.]=0.0
-ds_2km['h_mask'].data=mask_2km[::-1,:]
+#ds_2km['h_mask'].data=mask_2km[::-1,:]
 mask_4km=ds_4km['h_mask'].load().data
 mask_4km[grid_4km.tau_b_beta>0.]=1.0
 mask_4km[grid_4km.tau_b_beta==0.]=0.0
-ds_4km['h_mask'].data=mask_4km[::-1,:]
+#ds_4km['h_mask'].data=mask_4km[::-1,:]
 
 
 print('Overwriting original Grnld_xkm.nc files with updated h_mask')

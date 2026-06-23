@@ -4,53 +4,6 @@ from pyproj import CRS
 from pyproj.enums import WktVersion
 from pyproj import Transformer
 
-def find_in_domain(bnds,x,y):
-    """
-    Find bounding region for x,y grid
-    """
-    i0=np.where(x>=bnds[0][0])[0][0]
-    j0=np.where(y<bnds[0][1])[0][0]
-    i1=np.where(x>=bnds[1][0])[0][0]
-    j1=np.where(y<bnds[1][1])[0][0]
-
-    return [(i0,j0),(i1,j1)]
-
-
-def linfit2d(x,y,z):
-          """
-      Fit a set of points in 2-d to a cartesian plane.
-
-          z = a[0] + a[1]x + a[2]y
-          """
-          a_init = [0.0,0.0,0.0]
-          fitfunc = lambda a, x, y: a[0] + a[1]*x + a[2]*y
-          ff= fitfunc(a_init,x,y)
-          errfunc = lambda a, x, y, z: z - fitfunc(a,x,y)
-          err_res= errfunc(a_init,x,y,z)
-          out = optimize.leastsq(errfunc,a_init,args=(x.flatten(),y.flatten(),z.flatten()),full_output=1)
-          a_final=out[0]
-
-          return a_final
-
-def coarsen_2d(arr, block_size):
-    """
-    Coarsens a 2D array by averaging blocks of size block_size.
-    Example: block_size=(2, 2) averages 2x2 cells into 1 cell.
-    """
-    m, n = arr.shape
-    by, bx = block_size
-
-    # Reshape into (new_rows, block_height, new_cols, block_width)
-    reshaped = arr.reshape(m // by, by, n // bx, bx)
-
-    # Average across the block dimensions (axis 1 and 3)
-    return reshaped.mean(axis=(1, 3))
-
-
-
-
-
-
 
 class quadmesh:
     """
@@ -115,6 +68,9 @@ ds=xr.open_dataset(path,decode_times=False)
 #Cell corners xq,yq (m)
 xq1km=ds['x'].load().data
 yq1km=ds['y'].load().data
+#print('flipping y-axis for MOM6')
+#yq1km=yq1km[::-1]
+
 ni=xq1km.shape[0]-1;nj=yq1km.shape[0]-1
 print('Grid size= ',(nj,ni))
 print('x-node coord range: ',(xq1km[0],xq1km[-1]))
@@ -138,6 +94,9 @@ print('x bnds: ',(xq1km[0],xq1km[-1]))
 print('y bnds: ',(yq1km[0],yq1km[-1]))
 
 acabf1km=ds['acabf'].fillna(0.).load().data
+#flip y axis
+acabf1km=acabf1km[::-1,:]
+
 time = ds['time']
 
 
