@@ -45,7 +45,9 @@ class quadmesh:
                 Bbar=self.Bbar
                 Bbar[Bbar==0.]=168239086.57399723
                 self.A_glen = Bbar**(-3)
+                self.fralpha[self.fralpha==0.]=1.e5
                 self.tau_b_beta = self.fralpha**2.0
+
         else:
             self.fralpha = 0.25*((parent.fralpha[:-1:2,:-1:2]+parent.fralpha[:-1:2,1::2])+\
                              parent.fralpha[1::2,:-1:2]+parent.fralpha[1::2,1::2])
@@ -166,6 +168,8 @@ print('y bnds: ',(yq1km[0],yq1km[-1]))
 
 fralpha1km=ds['friction_coefficient'].fillna(0.).load().data
 Bbar1km=ds['Bbar'].fillna(0.).load().data
+h_mask1km=np.zeros(fralpha1km.shape)
+h_mask1km[fralpha1km>0.]=1.0
 # flip y-axis
 #fralpha1km=fralpha1km[::-1,:]
 #Bbar1km=Bbar1km[::-1,:]
@@ -176,8 +180,8 @@ vy_obs1km=ds['vy_obs'].fillna(0.).load().data*yr_p_sec
 #vx_obs1km=vx_obs1km[::-1,:]
 #vy_obs1km=vy_obs1km[::-1,:]
 
-umask1km = np.zeros((njp,nip))-1
-vmask1km = np.zeros((njp,nip))-1
+umask1km = np.zeros((njp,nip))-2
+vmask1km = np.zeros((njp,nip))-2
 float_frac1km = np.zeros((nj,ni))
 
 
@@ -204,17 +208,20 @@ ds_2km=xr.open_dataset('Grnld_2km.nc')
 ds_4km=xr.open_dataset('Grnld_4km.nc')
 
 mask_1km=ds_1km['h_mask'].load().data
-mask_1km[grid_1km.tau_b_beta>0.]=1.0
-mask_1km[grid_1km.tau_b_beta==0.]=0.0
-#ds_1km['h_mask'].data=mask_1km[::-1,:]
+mask_1km[grid_1km.tau_b_beta>0.]=1.
+mask_1km[np.abs(grid_1km.tau_b_beta-1.e10)<1.e-10]=0.0
+ds_1km['h_mask'].data=mask_1km[:,:]
+ds_1km['shelf_area'].data=mask_1km*ds_1km['shelf_area'].data
 mask_2km=ds_2km['h_mask'].load().data
 mask_2km[grid_2km.tau_b_beta>0.]=1.0
-mask_2km[grid_2km.tau_b_beta==0.]=0.0
-#ds_2km['h_mask'].data=mask_2km[::-1,:]
+mask_2km[np.abs(grid_2km.tau_b_beta-1.e10)<1.e-10]=0.0
+ds_2km['h_mask'].data=mask_2km[:,:]
+ds_2km['shelf_area'].data=mask_2km*ds_2km['shelf_area'].data
 mask_4km=ds_4km['h_mask'].load().data
 mask_4km[grid_4km.tau_b_beta>0.]=1.0
-mask_4km[grid_4km.tau_b_beta==0.]=0.0
-#ds_4km['h_mask'].data=mask_4km[::-1,:]
+mask_4km[np.abs(grid_4km.tau_b_beta-1.e10)<1.e-10]=0.0
+ds_4km['h_mask'].data=mask_4km[:,:]
+ds_4km['shelf_area'].data=mask_4km*ds_4km['shelf_area'].data
 
 
 print('Overwriting original Grnld_xkm.nc files with updated h_mask')
